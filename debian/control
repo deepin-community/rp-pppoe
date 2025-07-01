@@ -1,10 +1,13 @@
 Source: rp-pppoe
-Maintainer: Andreas Barth <aba@not.so.argh.org>
-Standards-Version: 3.9.8
+Maintainer: Lee Garrett <debian@rocketjump.eu>
+Standards-Version: 4.6.2
 Section: net
 Priority: optional
-Build-Depends: debhelper (>= 9)
-Uploaders: Lee Garrett <lgarrett@rocketjump.eu>
+Build-Depends: debhelper-compat (= 13)
+Rules-Requires-Root: binary-targets
+Vcs-Browser: https://salsa.debian.org/debian/rp-pppoe
+Vcs-Git: https://salsa.debian.org/debian/rp-pppoe.git
+Homepage: https://dianne.skoll.ca/projects/rp-pppoe/
 
 Package: pppoe
 Architecture: any

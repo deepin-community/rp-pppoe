@@ -1,0 +1,18 @@
+Description: Typo fix
+Author: Lee Garrett <debian@rocketjump.eu>
+Bug-Debian: https://bugs.debian.org/426621
+Forwarded: https://salsa.debian.org/dskoll/rp-pppoe/-/merge_requests/16
+Reviewed-By: Andreas Barth <aba@not.so.argh.org>
+Last-Update: 2023-01-18
+
+--- a/man/pppoe-server.8
++++ b/man/pppoe-server.8
+@@ -226,7 +226,7 @@
+ 
+ The control-socket was implemented as a secondary mechanism to improve run-time
+ control of the pppoe-server.  To use it you need to start pppoe-server with the
+-\fB-U\fR option described above.  You can then (in the absense of a
++\fB-U\fR option described above.  You can then (in the absence of a
+ control-client currently) use netcat to connect to the control socket, for example:
+ 
+ .nf

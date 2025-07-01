@@ -6,16 +6,14 @@
 * a hash_bucket member.
 *
 * Copyright (C) 2002 Roaring Penguin Software Inc.
+* Copyright (C) 2018-2023 Dianne Skoll
 *
 * This software may be distributed under the terms of the GNU General
 * Public License, Version 2 or (at your option) any later version.
 *
-* LIC: GPL
+* SPDX-License-Identifier: GPL-2.0-or-later
 *
 ***********************************************************************/
-
-static char const RCSID[] =
-"$Id$";
 
 #include "hash.h"
 

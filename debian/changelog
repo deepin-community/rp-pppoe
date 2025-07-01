@@ -1,3 +1,38 @@
+rp-pppoe (4.0-1) unstable; urgency=medium
+
+  * The "Ella, elle l'a" release
+  * d/gbp.conf: Switch to DEP-14 for the git repo layout
+  * Update debian/watch to match upstream changes
+  * Update upstream signing key
+  * d/gbp.conf: Enforce importing upstream signatures
+  * New upstream version 4.0 (Closes: #1071361)
+
+ -- Lee Garrett <debian@rocketjump.eu>  Tue, 21 May 2024 14:48:43 +0200
+
+rp-pppoe (3.15-2) unstable; urgency=medium
+
+  * Update upstream contact email address
+  * Bump Standards-Version (no changes needed)
+  * Update d/copyright
+  * Fix lintian override
+  * Update hardening flag according to wiki
+  * Add hardening build flags to Makefile
+  * Remove superfluous lintian override
+
+ -- Lee Garrett <debian@rocketjump.eu>  Wed, 18 Jan 2023 13:24:39 +0100
+
+rp-pppoe (3.15-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Update debian/watch to point to new website.
+  * Remove 04_ignore_broadcasted_pado_packets.patch (applied upstream).
+  * Remove 07_pppoestart-echo.patch (applied upstream).
+  * Bump Standards-Version.
+  * Bump debhelper-compat.
+  * Take over maintainership.
+
+ -- Lee Garrett <debian@rocketjump.eu>  Tue, 25 Jan 2022 21:43:51 +0100
+
 rp-pppoe (3.12-1.2) unstable; urgency=medium
 
   * Non-maintainer upload.
@@ -29,11 +64,11 @@ rp-pppoe (3.12-1) unstable; urgency=medium
   * Don't ship pppoe-setup as it it's not needed. Closes: #426621, #747144.
   * Add debian/watch file with signature verification.
   * Add .gitignore to the git repo.
-  * Remove confusing documentation that was accidentally re-introduced between 
+  * Remove confusing documentation that was accidentally re-introduced between
     3.5 and 3.8. Closes: #426621.
   * Add hardening flags to debian/rules.
 
- -- Lee Garrett <lgarrett@rocketjump.eu>  Wed, 22 Jun 2016 16:53:15 +0200
+ -- Lee Garrett <debian@rocketjump.eu>  Wed, 22 Jun 2016 16:53:15 +0200
 
 rp-pppoe (3.8-3) unstable; urgency=low
 
@@ -75,7 +110,7 @@ rp-pppoe (3.8-1) unstable; urgency=low
   * New upstream release
   * Upstream incorporated different version of security patch for -D and -p
     that drops priviledges for these options. Dropping Debian patch.
-  
+
  -- Christian Hudon <chrish@debian.org>  Tue, 25 Apr 2006 20:53:50 -0400
 
 rp-pppoe (3.5-4) unstable; urgency=high
@@ -85,7 +120,7 @@ rp-pppoe (3.5-4) unstable; urgency=high
     compromise by users in group dip when pppoe is running setuid root.
     [src/pppoe.c, CAN-2004-0564] Note that group dip is empty by default
     on Debian installs.
-  
+
  -- Christian Hudon <chrish@debian.org>  Wed, 29 Sep 2004 22:08:20 -0400
 
 rp-pppoe (3.5-3) unstable; urgency=medium
@@ -123,7 +158,7 @@ rp-pppoe (3.5-1) unstable; urgency=low
   * Remove prcs merge log (pppoe.log) during debian/rules clean.
   * Add note about default-asyncmap to README.Debian, pending further
     investigation.
-  * Add note to README.Debian about T-Online users needing to quote the 
+  * Add note to README.Debian about T-Online users needing to quote the
     username in the dsl-provider file. (Closes: #132996)
 
  -- Christian Hudon <chrish@debian.org>  Mon, 24 Mar 2003 20:22:00 -0500
@@ -140,10 +175,10 @@ rp-pppoe (3.3-1.1) unstable; urgency=low
 
   * Non Maintainer Upload.
   * mark /etc/ppp/ppp_on_boot.dsl as conffile (closes: #132117)
-  * use full path in /etc/ppp/peers/dsl-provider ppp_on_boot.dsl 
+  * use full path in /etc/ppp/peers/dsl-provider ppp_on_boot.dsl
     (closes: #111551)
   * small fix so can build on potato (closes: #117316)
-  * remove references to adsl-* in manpages and point user to 
+  * remove references to adsl-* in manpages and point user to
     /usr/share/doc/pppoe/README.Debian (closes: #71840)
 
  -- David Kimdon <dwhedon@debian.org>  Sun,  3 Feb 2002 16:44:55 -0800
@@ -160,7 +195,7 @@ rp-pppoe (3.2-1) unstable; urgency=low
   * New upstream release.
   * Replaced wrapper by patch from Eduard Bloch that makes pppoe bring
     the interface up if it wasn't up. (Closes: #106970)
-  * Bugs fixed in this or a previous release: 
+  * Bugs fixed in this or a previous release:
     closes: #94540, #83918, #70834, #72065, #80137, #86226, #79319, #75443, #67863, #79529, #88499, #91330.
 
  -- Christian Hudon <chrish@debian.org>  Mon, 20 Aug 2001 19:26:45 -0400
@@ -228,6 +263,3 @@ rp-pppoe (0.99b-1) unstable; urgency=low
   * Initial Debian release.
 
  -- Christian Hudon <chrish@debian.org>  Thu, 30 Dec 1999 21:07:44 -0500
-
-
-

@@ -6,16 +6,14 @@
 * easier.
 *
 * Copyright (C) 2001 Roaring Penguin Software Inc.
+* Copyright (C) 2018-2023 Dianne Skoll
 *
 * This program may be distributed according to the terms of the GNU
 * General Public License, version 2 or (at your option) any later version.
 *
-* LIC: GPL
+* SPDX-License-Identifier: GPL-2.0-or-later
 *
 ***********************************************************************/
-
-static char const RCSID[] =
-"$Id$";
 
 #include "event.h"
 #include <stdlib.h>

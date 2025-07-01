@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: rp-pppoe
-Upstream-Contact: Dianne Skoll <dfs@roaringpengiun.com>
+Upstream-Contact: Dianne Skoll <dianne@skoll.ca>
 Source: https://www.roaringpenguin.com/products/pppoe
 
 Files: *
@@ -10,7 +10,7 @@ License: GPL-2.0+
 Files: debian/*
 Copyright: 1999-2006 Christian Hudon <chrish@debian.org>
            2006-2007 Andreas Barth <aba@not.so.argh.org>
-           2016 Lee Garrett <lgarrett@rocketjump.eu>
+           2016-2023 Lee Garrett <debian@rocketjump.eu>
 License: GPL-2.0+
 
 Files: debian/patches/01_auto_ifup.patch
@@ -22,20 +22,8 @@ Files: debian/patches/02_change_mac_option.patch
 Copyright: 2007 Sven Geggus <sven@geggus.net>
 License: GPL-2.0+
 
-Files: debian/patches/03_man_pages.patch
-Copyright: 2002 David Kimdon <dwhedon@debian.org>
-License: GPL-2.0+
-
-Files: debian/patches/04_ignore_broadcasted_pado_packets.patch
-Copyright: 2005 Stephane Louise <luigi@nerim.net>
-License: GPL-2.0+
-
-Files: debian/patches/05_change_default_timeout.patch
-Copyright: 2007 Andreas Barth <aba@not.so.argh.org>
-License: GPL-2.0+
-
-Files: debian/patches/06_typo_fixes.patch
-Copyright: 2016 Lee Garrett <lgarrett@rocketjump.eu>
+Files: debian/patches/05_typo_fixes.patch
+Copyright: 2016 Lee Garrett <debian@rocketjump.eu>
 License: GPL-2.0+
 
 License: GPL-2.0+

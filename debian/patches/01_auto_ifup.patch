@@ -7,24 +7,20 @@ Forwarded: no
 Reviewed-By: Christian Hudon <chrish@debian.org>
 Last-Update: 2016-06-21
 
-Index: rp-pppoe/src/Makefile.in
-===================================================================
---- rp-pppoe.orig/src/Makefile.in
-+++ rp-pppoe/src/Makefile.in
-@@ -85,7 +85,7 @@ pppoe-relay: relay.o if.o debug.o common
- 	@CC@ -o $@ $^ $(LDFLAGS)
+--- a/src/Makefile.in
++++ b/src/Makefile.in
+@@ -72,7 +72,7 @@
+ 	@CC@ -o $@ $^ $(LDFLAGS) $(STATIC)
  
  pppoe.o: pppoe.c pppoe.h
--	@CC@ $(CFLAGS) '-DVERSION="$(VERSION)"' -c -o $@ $<
-+	@CC@ $(CFLAGS) -DAUTO_IFUP '-DVERSION="$(VERSION)"' -c -o $@ $<
+-	@CC@ $(CFLAGS) '-DRP_VERSION="$(RP_VERSION)"' -c -o $@ $<
++	@CC@ $(CFLAGS) -DAUTO_IFUP '-DRP_VERSION="$(RP_VERSION)"' -c -o $@ $<
  
  discovery.o: discovery.c pppoe.h
- 	@CC@ $(CFLAGS) '-DVERSION="$(VERSION)"' -c -o $@ $<
-Index: rp-pppoe/src/pppoe.c
-===================================================================
---- rp-pppoe.orig/src/pppoe.c
-+++ rp-pppoe/src/pppoe.c
-@@ -68,6 +68,48 @@ int optFloodDiscovery    = 0;   /* Flood
+ 	@CC@ $(CFLAGS) '-DRP_VERSION="$(RP_VERSION)"' -c -o $@ $<
+--- a/src/pppoe.c
++++ b/src/pppoe.c
+@@ -52,6 +52,48 @@
  				   USED FOR STRESS-TESTING ONLY.  DO NOT
  				   USE THE -F OPTION AGAINST A REAL ISP */
  
@@ -73,8 +69,8 @@ Index: rp-pppoe/src/pppoe.c
  PPPoEConnection *Connection = NULL; /* Must be global -- used
  				       in signal handler */
  
-@@ -601,6 +643,16 @@ main(int argc, char *argv[])
- #endif
+@@ -519,6 +561,16 @@
+ 	SET_STRING(conn.ifName, DEFAULT_IF);
      }
  
 +#ifdef AUTO_IFUP    
