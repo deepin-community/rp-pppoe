@@ -5,48 +5,30 @@
 * Implementation of user-space PPPoE redirector for Linux.
 *
 * Copyright (C) 2000-2015 by Roaring Penguin Software Inc.
+* Copyright (C) 2018-2023 Dianne Skoll
 *
 * This program may be distributed according to the terms of the GNU
 * General Public License, version 2 or (at your option) any later version.
 *
-* LIC: GPL
+* SPDX-License-Identifier: GPL-2.0-or-later
 *
 ***********************************************************************/
 
-static char const RCSID[] =
-"$Id$";
+#define _GNU_SOURCE 1
 
-#include "pppoe.h"
-
-#ifdef HAVE_SYSLOG_H
 #include <syslog.h>
-#endif
-
-#ifdef HAVE_GETOPT_H
 #include <getopt.h>
-#endif
 
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 
-#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-#endif
-
-#ifdef HAVE_SYS_UIO_H
 #include <sys/uio.h>
-#endif
-
-#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
-
-#ifdef USE_LINUX_PACKET
 #include <sys/ioctl.h>
 #include <fcntl.h>
-#endif
 
 #include <signal.h>
 
@@ -55,6 +37,8 @@ static char const RCSID[] =
 #include <pty.h>
 #endif
 #endif
+
+#include "pppoe.h"
 
 /* Default interface if no -I option given */
 #define DEFAULT_IF "eth0"
@@ -106,52 +90,6 @@ sendSessionPacket(PPPoEConnection *conn, PPPoEPacket *packet, int len)
 
 }
 
-#ifdef USE_BPF
-/**********************************************************************
-*%FUNCTION: sessionDiscoveryPacket
-*%ARGUMENTS:
-* packet -- the discovery packet that was received
-*%RETURNS:
-* Nothing
-*%DESCRIPTION:
-* We got a discovery packet during the session stage.  This most likely
-* means a PADT.
-*
-* The BSD version uses a single socket for both discovery and session
-* packets.  When a packet comes in over the wire once we are in
-* session mode, either syncReadFromEth() or asyncReadFromEth() will
-* have already read the packet and determined it to be a discovery
-* packet before passing it here.
-***********************************************************************/
-static void
-sessionDiscoveryPacket(PPPoEPacket *packet)
-{
-    /* Sanity check */
-    if (packet->code != CODE_PADT) {
-	return;
-    }
-
-    /* It's a PADT, all right.  Is it for us? */
-    if (packet->session != Connection->session) {
-	/* Nope, ignore it */
-	return;
-    }
-    if (memcmp(packet->ethHdr.h_dest, Connection->myEth, ETH_ALEN)) {
-	return;
-    }
-
-    if (memcmp(packet->ethHdr.h_source, Connection->peerEth, ETH_ALEN)) {
-	return;
-    }
-
-    syslog(LOG_INFO,
-	   "Session %d terminated -- received PADT from peer",
-	   (int) ntohs(packet->session));
-    parsePacket(packet, parseLogErrs, NULL);
-    sendPADT(Connection, "Received PADT from peer");
-    exit(EXIT_SUCCESS);
-}
-#else
 /**********************************************************************
 *%FUNCTION: sessionDiscoveryPacket
 *%ARGUMENTS:
@@ -179,24 +117,29 @@ sessionDiscoveryPacket(PPPoEConnection *conn)
 	return;
     }
 
-    if (packet.code != CODE_PADT) {
-	/* Not PADT; ignore it */
-	return;
-    }
-
-    /* It's a PADT, all right.  Is it for us? */
+    /* Is it for our session? */
     if (packet.session != conn->session) {
 	/* Nope, ignore it */
 	return;
     }
 
+    /* Is it for our Ethernet interface? */
     if (memcmp(packet.ethHdr.h_dest, conn->myEth, ETH_ALEN)) {
+	/* Nope, ignore it */
 	return;
     }
 
+    /* Is it from our peer's Ethernet interface? */
     if (memcmp(packet.ethHdr.h_source, conn->peerEth, ETH_ALEN)) {
+	/* Nope, ignore it */
 	return;
     }
+
+    if (packet.code != CODE_PADT) {
+	/* Not PADT; ignore it */
+	return;
+    }
+
 #ifdef DEBUGGING_ENABLED
     if (conn->debugFile) {
 	dumpPacket(conn->debugFile, &packet, "RCVD");
@@ -211,7 +154,6 @@ sessionDiscoveryPacket(PPPoEConnection *conn)
     sendPADT(conn, "Received PADT from peer");
     exit(EXIT_SUCCESS);
 }
-#endif /* USE_BPF */
 
 /**********************************************************************
 *%FUNCTION: session
@@ -244,23 +186,11 @@ session(PPPoEConnection *conn)
     memcpy(packet.ethHdr.h_dest, conn->peerEth, ETH_ALEN);
     memcpy(packet.ethHdr.h_source, conn->myEth, ETH_ALEN);
     packet.ethHdr.h_proto = htons(Eth_PPPOE_Session);
-    packet.ver = 1;
-    packet.type = 1;
+    packet.vertype = PPPOE_VER_TYPE(1, 1);
     packet.code = CODE_SESS;
     packet.session = conn->session;
 
     initPPP();
-
-#ifdef USE_BPF
-    /* check for buffered session data */
-    while (BPF_BUFFER_HAS_DATA) {
-	if (conn->synchronous) {
-	    syncReadFromEth(conn, conn->sessionSocket, optClampMSS);
-	} else {
-	    asyncReadFromEth(conn, conn->sessionSocket, optClampMSS);
-	}
-    }
-#endif
 
     for (;;) {
 	if (optInactivityTimeout > 0) {
@@ -298,25 +228,17 @@ session(PPPoEConnection *conn)
 	}
 
 	if (FD_ISSET(conn->sessionSocket, &readable)) {
-	    do {
-		if (conn->synchronous) {
-		    syncReadFromEth(conn, conn->sessionSocket, optClampMSS);
-		} else {
-		    asyncReadFromEth(conn, conn->sessionSocket, optClampMSS);
-		}
-	    } while (BPF_BUFFER_HAS_DATA);
-	}
-
-#ifndef USE_BPF
-	/* BSD uses a single socket, see *syncReadFromEth() */
-	/* for calls to sessionDiscoveryPacket() */
-	if (conn->discoverySocket >= 0) {
-	    if (FD_ISSET(conn->discoverySocket, &readable)) {
-		sessionDiscoveryPacket(conn);
-	    }
-	}
-#endif
-
+            if (conn->synchronous) {
+                syncReadFromEth(conn, conn->sessionSocket, optClampMSS);
+            } else {
+                asyncReadFromEth(conn, conn->sessionSocket, optClampMSS);
+            }
+        }
+        if (conn->discoverySocket >= 0) {
+            if (FD_ISSET(conn->discoverySocket, &readable)) {
+                sessionDiscoveryPacket(conn);
+            }
+        }
     }
 }
 
@@ -336,7 +258,7 @@ sigPADT(int src)
 {
   syslog(LOG_DEBUG,"Received signal %d on session %d.",
 	 (int)src, (int) ntohs(Connection->session));
-  sendPADTf(Connection, "RP-PPPoE: Received signal %d", src);
+  sendPADTf(Connection, "RP-PPPoE: Client terminated by signal %d", src);
   exit(EXIT_SUCCESS);
 }
 
@@ -354,12 +276,8 @@ usage(char const *argv0)
 {
     fprintf(stderr, "Usage: %s [options]\n", argv0);
     fprintf(stderr, "Options:\n");
-#ifdef USE_BPF
-    fprintf(stderr, "   -I if_name     -- Specify interface (REQUIRED)\n");
-#else
     fprintf(stderr, "   -I if_name     -- Specify interface (default %s.)\n",
 	    DEFAULT_IF);
-#endif
 #ifdef DEBUGGING_ENABLED
     fprintf(stderr, "   -D filename    -- Log debugging information in filename.\n");
 #endif
@@ -381,11 +299,12 @@ usage(char const *argv0)
 	    "   -d             -- Perform discovery, print session info and exit.\n"
 	    "   -f disc:sess   -- Set Ethernet frame types (hex).\n"
 	    "   -h             -- Print usage information.\n\n"
-	    "PPPoE Version %s, Copyright (C) 2001-2015 Roaring Penguin Software Inc.\n"
-	    "PPPoE comes with ABSOLUTELY NO WARRANTY.\n"
+	    "RP-PPPoE Version %s, Copyright (C) 2001-2018 Roaring Penguin Software Inc.\n"
+	    "                 %*s  Copyright (C) 2018-2023 Dianne Skoll\n"
+	    "RP-PPPoE comes with ABSOLUTELY NO WARRANTY.\n"
 	    "This is free software, and you are welcome to redistribute it under the terms\n"
 	    "of the GNU General Public License, version 2 or any later version.\n"
-	    "http://www.roaringpenguin.com\n", VERSION);
+	    "https://dianne.skoll.ca/projects/rp-pppoe/\n", RP_VERSION, (int) strlen(RP_VERSION), "");
     exit(EXIT_SUCCESS);
 }
 
@@ -466,8 +385,8 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Illegal argument to -f: Should be disc:sess in hex\n");
 		exit(EXIT_FAILURE);
 	    }
-	    Eth_PPPOE_Discovery = (UINT16_t) discoveryType;
-	    Eth_PPPOE_Session   = (UINT16_t) sessionType;
+	    Eth_PPPOE_Discovery = (uint16_t) discoveryType;
+	    Eth_PPPOE_Session   = (uint16_t) sessionType;
 	    break;
 	case 'd':
 	    optSkipSession = 1;
@@ -541,6 +460,10 @@ main(int argc, char *argv[])
 		fprintf(stderr, "-U and -W are mutually-exclusive and may only be used once.\n");
 		exit(EXIT_FAILURE);
 	    }
+            if (strlen(optarg) > 64) {
+                fprintf(stderr, "Maximum length of -W argument is 64 bytes.\n");
+                exit(EXIT_FAILURE);
+            }
 	    SET_STRING(conn.hostUniq, optarg);
 	    break;
 #ifdef DEBUGGING_ENABLED
@@ -553,7 +476,7 @@ main(int argc, char *argv[])
 			optarg, strerror(errno));
 		exit(EXIT_FAILURE);
 	    }
-	    fprintf(conn.debugFile, "rp-pppoe-%s\n", VERSION);
+	    fprintf(conn.debugFile, "rp-pppoe-%s\n", RP_VERSION);
 	    fflush(conn.debugFile);
 	    break;
 #endif
@@ -578,7 +501,7 @@ main(int argc, char *argv[])
 	    SET_STRING(conn.ifName, optarg);
 	    break;
 	case 'V':
-	    printf("Roaring Penguin PPPoE Version %s\n", VERSION);
+	    printf("RP-PPPoE Version %s\n", RP_VERSION);
 	    exit(EXIT_SUCCESS);
 	case 'A':
 	    conn.printACNames = 1;
@@ -593,12 +516,7 @@ main(int argc, char *argv[])
 
     /* Pick a default interface name */
     if (!conn.ifName) {
-#ifdef USE_BPF
-	fprintf(stderr, "No interface specified (-I option)\n");
-	exit(EXIT_FAILURE);
-#else
 	SET_STRING(conn.ifName, DEFAULT_IF);
-#endif
     }
 
     if (!conn.printACNames) {
@@ -646,8 +564,9 @@ main(int argc, char *argv[])
     /* server equipment).                                                  */
     /* Opening this socket just before waitForPADS in the discovery()      */
     /* function would be more appropriate, but it would mess-up the code   */
-    if (!optSkipSession)
+    if (!optSkipSession) {
         conn.sessionSocket = openInterface(conn.ifName, Eth_PPPOE_Session, conn.myEth, NULL);
+    }
 
     /* Skip discovery and don't open discovery socket? */
     if (conn.skipDiscovery && conn.noDiscoverySocket) {
@@ -669,10 +588,10 @@ main(int argc, char *argv[])
 	exit(EXIT_SUCCESS);
     }
 
-    /* Set signal handlers: send PADT on HUP; ignore TERM and INT */
-    signal(SIGTERM, SIG_IGN);
-    signal(SIGINT, SIG_IGN);
-    signal(SIGHUP, sigPADT);
+    /* Set signal handlers: send PADT on HUP, TERM and INT */
+    signal(SIGTERM, sigPADT);
+    signal(SIGINT,  sigPADT);
+    signal(SIGHUP,  sigPADT);
     session(&conn);
     return 0;
 }
@@ -689,10 +608,8 @@ main(int argc, char *argv[])
 void
 fatalSys(char const *str)
 {
-    char buf[1024];
-    sprintf(buf, "%.256s: Session %d: %.256s",
+    printErr("%.256s: Session %d: %.256s",
 	    str, (int) ntohs(Connection->session), strerror(errno));
-    printErr(buf);
     sendPADTf(Connection, "RP-PPPoE: System call error: %s",
 	      strerror(errno));
     exit(EXIT_FAILURE);
@@ -710,9 +627,7 @@ fatalSys(char const *str)
 void
 sysErr(char const *str)
 {
-    char buf[1024];
-    sprintf(buf, "%.256s: %.256s", str, strerror(errno));
-    printErr(buf);
+    printErr("%.256s: %.256s", str, strerror(errno));
 }
 
 /**********************************************************************
@@ -727,7 +642,7 @@ sysErr(char const *str)
 void
 rp_fatal(char const *str)
 {
-    printErr(str);
+    printErr("%s", str);
     sendPADTf(Connection, "RP-PPPoE: Session %d: %.256s",
 	      (int) ntohs(Connection->session), str);
     exit(EXIT_FAILURE);
@@ -755,12 +670,9 @@ asyncReadFromEth(PPPoEConnection *conn, int sock, int clampMss)
     unsigned char pppBuf[4096];
     unsigned char *ptr = pppBuf;
     unsigned char c;
-    UINT16_t fcs;
+    uint16_t fcs;
     unsigned char header[2] = {FRAME_ADDR, FRAME_CTRL};
     unsigned char tail[2];
-#ifdef USE_BPF
-    int type;
-#endif
 
     if (receivePacket(sock, &packet, &len) < 0) {
 	return;
@@ -780,27 +692,17 @@ asyncReadFromEth(PPPoEConnection *conn, int sock, int clampMss)
     }
 #endif
 
-#ifdef USE_BPF
-    /* Make sure this is a session packet before processing further */
-    type = etherType(&packet);
-    if (type == Eth_PPPOE_Discovery) {
-	sessionDiscoveryPacket(&packet);
-    } else if (type != Eth_PPPOE_Session) {
-	return;
-    }
-#endif
-
     /* Sanity check */
     if (packet.code != CODE_SESS) {
 	syslog(LOG_ERR, "Unexpected packet code %d", (int) packet.code);
 	return;
     }
-    if (packet.ver != 1) {
-	syslog(LOG_ERR, "Unexpected packet version %d", (int) packet.ver);
+    if (PPPOE_VER(packet.vertype) != 1) {
+	syslog(LOG_ERR, "Unexpected packet version %d", PPPOE_VER(packet.vertype));
 	return;
     }
-    if (packet.type != 1) {
-	syslog(LOG_ERR, "Unexpected packet type %d", (int) packet.type);
+    if (PPPOE_TYPE(packet.vertype) != 1) {
+	syslog(LOG_ERR, "Unexpected packet type %d", PPPOE_TYPE(packet.vertype));
 	return;
     }
     if (memcmp(packet.ethHdr.h_dest, conn->myEth, ETH_ALEN)) {
@@ -887,9 +789,6 @@ syncReadFromEth(PPPoEConnection *conn, int sock, int clampMss)
     int plen;
     struct iovec vec[2];
     unsigned char dummy[2];
-#ifdef USE_BPF
-    int type;
-#endif
 
     if (receivePacket(sock, &packet, &len) < 0) {
 	return;
@@ -909,27 +808,17 @@ syncReadFromEth(PPPoEConnection *conn, int sock, int clampMss)
     }
 #endif
 
-#ifdef USE_BPF
-    /* Make sure this is a session packet before processing further */
-    type = etherType(&packet);
-    if (type == Eth_PPPOE_Discovery) {
-	sessionDiscoveryPacket(&packet);
-    } else if (type != Eth_PPPOE_Session) {
-	return;
-    }
-#endif
-
     /* Sanity check */
     if (packet.code != CODE_SESS) {
 	syslog(LOG_ERR, "Unexpected packet code %d", (int) packet.code);
 	return;
     }
-    if (packet.ver != 1) {
-	syslog(LOG_ERR, "Unexpected packet version %d", (int) packet.ver);
+    if (PPPOE_VER(packet.vertype) != 1) {
+	syslog(LOG_ERR, "Unexpected packet version %d", PPPOE_VER(packet.vertype));
 	return;
     }
-    if (packet.type != 1) {
-	syslog(LOG_ERR, "Unexpected packet type %d", (int) packet.type);
+    if (PPPOE_TYPE(packet.vertype) != 1) {
+	syslog(LOG_ERR, "Unexpected packet type %d", PPPOE_TYPE(packet.vertype));
 	return;
     }
     if (memcmp(packet.ethHdr.h_dest, conn->myEth, ETH_ALEN)) {

@@ -1,3 +1,5 @@
-version=3
-opts=pgpsigurlmangle=s/$/.sig/ https://www.roaringpenguin.com/products/pppoe /files/download/rp-pppoe-(.+).tar.gz
-
+version=4
+opts="pgpmode=mangle,pgpsigurlmangle=s%$%.sig%,filenamemangle=s%[^?]+\?file=(.+)%$1%" \
+    https://dianne.skoll.ca/projects/rp-pppoe/ \
+    download.php\?file=rp-pppoe-(4.0).tar.gz \
+    debian uupdate

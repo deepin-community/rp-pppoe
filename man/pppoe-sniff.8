@@ -1,4 +1,4 @@
-.\" LIC: GPL
+.\" SPDX-License-Identifier: GPL-2.0-or-later
 .TH PPPOE-SNIFF 8 "3 July 2000"
 .\""
 .UC 4
@@ -31,24 +31,19 @@ and start \fBpppoe-sniff\fR.  If the ethernet interface is \fIeth0\fR,
 for example, type these commands:
 
 .nf
-	ifconfig eth0 promisc
+	ip link set eth0 promisc on
 	pppoe-sniff -I eth0
 .fi
 
 On the other machine, start your DSL connection as usual.  After a short
 time, \fBpppoe-sniff\fR should print recommendations for the value
-of \fBPPPOE_EXTRA\fR.  Set this value in \fB/etc/ppp/pppoe.conf\fR.
-If \fBpppoe-sniff\fR indicates that something special is required in
-\fBPPPOE_EXTRA\fR, please e-mail this to \fBpppoe@roaringpenguin.com\fR
-along with the name of your ISP and the manufacturer and model number of
-your DSL modem.  This information will be collated and provided on the
-PPPoE web page for users who do not have two computers.
+of an '-f' option for \fBpppoe\fR.
 
 After \fBpppoe-sniff\fR finishes (or you stop it if it seems hung),
 remember to turn off promiscuous mode:
 
 .nf
-	ifconfig eth0 -promisc
+	ip link set eth0 promisc on
 .fi
 
 .SH OPTIONS
@@ -67,11 +62,10 @@ exit.
 \fBpppoe-sniff\fR only works on Linux.
 
 .SH AUTHORS
-\fBpppoe-sniff\fR was written by Dianne Skoll <dfs@roaringpenguin.com>.
+\fBpppoe-sniff\fR was written by Dianne Skoll <dianne@skoll.ca>.
 
-The \fBpppoe\fR home page is \fIhttp://www.roaringpenguin.com/pppoe/\fR.
+The \fBpppoe\fR home page is \fIhttps://dianne.skoll.ca/projects/rp-pppoe/\fR.
 
 .SH SEE ALSO
-pppoe-start(8), pppoe-stop(8), pppoe-connect(8), pppd(8), pppoe.conf(5),
-pppoe(8), pppoe-setup(8), pppoe-status(8), pppoe-server(8), pppoe-relay(8)
+pppd(8), pppoe(8), pppoe-server(8), pppoe-relay(8)
 

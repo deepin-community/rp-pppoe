@@ -5,11 +5,12 @@
 * Declaration of various PPPoE constants
 *
 * Copyright (C) 2000-2012 Roaring Penguin Software Inc.
+* Copyright (C) 2018-2023 Dianne Skoll
 *
 * This program may be distributed according to the terms of the GNU
 * General Public License, version 2 or (at your option) any later version.
 *
-* LIC: GPL
+* SPDX-License-Identifier: GPL-2.0-or-later
 *
 * $Id$
 *
@@ -19,140 +20,23 @@
 
 extern int IsSetID;
 
-#if defined(HAVE_NETPACKET_PACKET_H) || defined(HAVE_LINUX_IF_PACKET_H)
 #define _POSIX_SOURCE 1 /* For sigaction defines */
-#endif
 
-#include <stdio.h>		/* For FILE */
-#include <sys/types.h>		/* For pid_t */
-
-/* How do we access raw Ethernet devices? */
-#undef USE_LINUX_PACKET
-#undef USE_BPF
-
-#if defined(HAVE_NETPACKET_PACKET_H) || defined(HAVE_LINUX_IF_PACKET_H)
-#define USE_LINUX_PACKET 1
-#elif defined(HAVE_SYS_DLPI_H)
-#define USE_DLPI
-#elif defined(HAVE_NET_BPF_H)
-#define USE_BPF 1
-#endif
-
-/* Sanity check */
-#if !defined(USE_BPF) && !defined(USE_LINUX_PACKET) && !defined(USE_DLPI)
-#error Unknown method for accessing raw Ethernet frames
-#endif
-
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
-
-/* Ugly header files on some Linux boxes... */
-#if defined(HAVE_LINUX_IF_H)
-#include <linux/if.h>
-#elif defined(HAVE_NET_IF_H)
-#include <net/if.h>
-#endif
-
-#ifdef HAVE_NET_IF_TYPES_H
-#include <net/if_types.h>
-#endif
-
-#ifdef HAVE_NET_IF_DL_H
-#include <net/if_dl.h>
-#endif
-
-/* I'm not sure why this is needed... I do not have OpenBSD */
-#if defined(__OpenBSD__)
-#include <net/ppp_defs.h>
-#include <net/if_ppp.h>
-#endif
-
-#ifdef USE_BPF
-extern int bpfSize;
-struct PPPoEPacketStruct;
-void sessionDiscoveryPacket(struct PPPoEPacketStruct *packet);
-#define BPF_BUFFER_IS_EMPTY (bpfSize <= 0)
-#define BPF_BUFFER_HAS_DATA (bpfSize > 0)
-#define ethhdr ether_header
-#define h_dest ether_dhost
-#define h_source ether_shost
-#define h_proto ether_type
-#define	ETH_DATA_LEN ETHERMTU
-#define	ETH_ALEN ETHER_ADDR_LEN
-#else
-#undef USE_BPF
-#define BPF_BUFFER_IS_EMPTY 1
-#define BPF_BUFFER_HAS_DATA 0
-#endif
-
-#ifdef USE_DLPI
-#include <sys/ethernet.h>
-#define ethhdr ether_header
-#define	ETH_DATA_LEN ETHERMTU
-#define	ETH_ALEN ETHERADDRL
-#define h_dest ether_dhost.ether_addr_octet
-#define h_source ether_shost.ether_addr_octet
-#define h_proto ether_type
-
-/* cloned from dltest.h */
-#define         MAXDLBUF        8192
-#define         MAXDLADDR       1024
-#define         MAXWAIT         15
-#define         OFFADDR(s, n)   (u_char*)((char*)(s) + (int)(n))
-#define         CASERET(s)      case s:  return ("s")
-
-#endif
-
-/* Define various integer types -- assumes a char is 8 bits */
-#if SIZEOF_UNSIGNED_SHORT == 2
-typedef unsigned short UINT16_t;
-#elif SIZEOF_UNSIGNED_INT == 2
-typedef unsigned int UINT16_t;
-#else
-#error Could not find a 16-bit integer type
-#endif
-
-#if SIZEOF_UNSIGNED_SHORT == 4
-typedef unsigned short UINT32_t;
-#elif SIZEOF_UNSIGNED_INT == 4
-typedef unsigned int UINT32_t;
-#elif SIZEOF_UNSIGNED_LONG == 4
-typedef unsigned long UINT32_t;
-#else
-#error Could not find a 32-bit integer type
-#endif
-
-#ifdef HAVE_LINUX_IF_ETHER_H
-#include <linux/if_ether.h>
-#endif
-
+#include <stdint.h>
+#include <stdio.h>
 #include <netinet/in.h>
 
-#ifdef HAVE_NETINET_IF_ETHER_H
 #include <sys/types.h>
-
-#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
-#endif
-#ifndef HAVE_SYS_DLPI_H
-#include <netinet/if_ether.h>
-#endif
-#endif
-
-
+#include <net/ethernet.h>
 
 /* Ethernet frame types according to RFC 2516 */
 #define ETH_PPPOE_DISCOVERY 0x8863
 #define ETH_PPPOE_SESSION   0x8864
 
 /* But some brain-dead peers disobey the RFC, so frame types are variables */
-extern UINT16_t Eth_PPPOE_Discovery;
-extern UINT16_t Eth_PPPOE_Session;
+extern uint16_t Eth_PPPOE_Discovery;
+extern uint16_t Eth_PPPOE_Session;
 
 extern void switchToRealID(void);
 extern void switchToEffectiveID(void);
@@ -226,18 +110,16 @@ extern void dropPrivs(void);
 /* A PPPoE Packet, including Ethernet headers */
 typedef struct PPPoEPacketStruct {
     struct ethhdr ethHdr;	/* Ethernet header */
-#ifdef PACK_BITFIELDS_REVERSED
-    unsigned int type:4;	/* PPPoE Type (must be 1) */
-    unsigned int ver:4;		/* PPPoE Version (must be 1) */
-#else
-    unsigned int ver:4;		/* PPPoE Version (must be 1) */
-    unsigned int type:4;	/* PPPoE Type (must be 1) */
-#endif
+    unsigned int vertype:8;	/* PPPoE Version (high nibble) and Type (low nibble) (must both be 1) */
     unsigned int code:8;	/* PPPoE code */
     unsigned int session:16;	/* PPPoE session */
     unsigned int length:16;	/* Payload length */
     unsigned char payload[ETH_JUMBO_LEN]; /* A bit of room to spare */
 } PPPoEPacket;
+
+#define PPPOE_VER(vt)	((vt) >> 4)
+#define PPPOE_TYPE(vt)	((vt) & 0xf)
+#define PPPOE_VER_TYPE(v, t)	(((v) << 4) | (t))
 
 /* Header size of a PPPoE packet */
 #define PPPOE_OVERHEAD 6  /* type, code, session, length */
@@ -255,7 +137,7 @@ typedef struct PPPoEPacketStruct {
 typedef struct PPPoETagStruct {
     unsigned int type:16;	/* tag type */
     unsigned int length:16;	/* Length of payload */
-    unsigned char payload[ETH_JUMBO_LEN]; /* A LOT of room to spare */
+    unsigned char payload[ETH_DATA_LEN];
 } PPPoETag;
 /* Header size of a PPPoE tag */
 #define TAG_HDR_SIZE 4
@@ -264,8 +146,8 @@ typedef struct PPPoETagStruct {
 #define READ_CHUNK 4096
 
 /* Function passed to parsePacket */
-typedef void ParseFunc(UINT16_t type,
-		       UINT16_t len,
+typedef void ParseFunc(uint16_t type,
+		       uint16_t len,
 		       unsigned char *data,
 		       void *extra);
 
@@ -280,12 +162,10 @@ typedef struct PPPoEConnectionStruct {
     int sessionSocket;		/* Raw socket for session frames */
     unsigned char myEth[ETH_ALEN]; /* My MAC address */
     unsigned char peerEth[ETH_ALEN]; /* Peer's MAC address */
-#ifdef PLUGIN
     unsigned char req_peer_mac[ETH_ALEN]; /* required peer MAC address */
     unsigned char req_peer;     /* require mac addr to match req_peer_mac */
-#endif
 
-    UINT16_t session;		/* Session ID */
+    uint16_t session;		/* Session ID */
     char *ifName;		/* Interface name */
     char *serviceName;		/* Desired service name, if any */
     char *acName;		/* Desired AC name, if any */
@@ -301,11 +181,9 @@ typedef struct PPPoEConnectionStruct {
     PPPoETag relayId;		/* Ditto */
     int PADSHadError;           /* If PADS had an error tag */
     int discoveryTimeout;       /* Timeout for discovery packets */
-#ifdef PLUGIN
     int seenMaxPayload;
     int mtu;
     int mru;
-#endif
 } PPPoEConnection;
 
 /* Structure used to determine acceptable PADO or PADS packet */
@@ -319,26 +197,25 @@ struct PacketCriteria {
 };
 
 /* Function Prototypes */
-UINT16_t etherType(PPPoEPacket *packet);
-int openInterface(char const *ifname, UINT16_t type, unsigned char *hwaddr, UINT16_t *mtu);
+uint16_t etherType(PPPoEPacket *packet);
+int openInterface(char const *ifname, uint16_t type, unsigned char *hwaddr, uint16_t *mtu);
 int sendPacket(PPPoEConnection *conn, int sock, PPPoEPacket *pkt, int size);
 int receivePacket(int sock, PPPoEPacket *pkt, int *size);
 void fatalSys(char const *str);
 void rp_fatal(char const *str);
-void printErr(char const *str);
+__attribute__((format (printf, 1, 2))) void printErr(char const *fmt, ...);
 void sysErr(char const *str);
 #ifdef DEBUGGING_ENABLED
 void dumpPacket(FILE *fp, PPPoEPacket *packet, char const *dir);
 void dumpHex(FILE *fp, unsigned char const *buf, int len);
 #endif
 int parsePacket(PPPoEPacket *packet, ParseFunc *func, void *extra);
-void parseLogErrs(UINT16_t typ, UINT16_t len, unsigned char *data, void *xtra);
-void pktLogErrs(char const *pkt, UINT16_t typ, UINT16_t len, unsigned char *data, void *xtra);
+void parseLogErrs(uint16_t typ, uint16_t len, unsigned char *data, void *xtra);
+void pktLogErrs(char const *pkt, uint16_t typ, uint16_t len, unsigned char *data, void *xtra);
 void syncReadFromPPP(PPPoEConnection *conn, PPPoEPacket *packet);
 void asyncReadFromPPP(PPPoEConnection *conn, PPPoEPacket *packet);
 void asyncReadFromEth(PPPoEConnection *conn, int sock, int clampMss);
 void syncReadFromEth(PPPoEConnection *conn, int sock, int clampMss);
-char *strDup(char const *str);
 void sendPADT(PPPoEConnection *conn, char const *msg);
 void sendPADTf(PPPoEConnection *conn, char const *fmt, ...);
 
@@ -346,13 +223,15 @@ void sendSessionPacket(PPPoEConnection *conn,
 		       PPPoEPacket *packet, int len);
 void initPPP(void);
 void clampMSS(PPPoEPacket *packet, char const *dir, int clampMss);
-UINT16_t computeTCPChecksum(unsigned char *ipHdr, unsigned char *tcpHdr);
-UINT16_t pppFCS16(UINT16_t fcs, unsigned char *cp, int len);
+uint16_t computeTCPChecksum(unsigned char *ipHdr, unsigned char *tcpHdr);
+uint16_t pppFCS16(uint16_t fcs, unsigned char *cp, int len);
 void discovery(PPPoEConnection *conn);
-unsigned char *findTag(PPPoEPacket *packet, UINT16_t tagType,
+unsigned char *findTag(PPPoEPacket *packet, uint16_t tagType,
 		       PPPoETag *tag);
 
-#define SET_STRING(var, val) do { if (var) free(var); var = strDup(val); } while(0);
+size_t rp_strlcpy(char *dst, const char *src, size_t size);
+
+#define SET_STRING(var, val) do { if (var) free(var); var = strdup(val); if (!var) rp_fatal("strdup failed"); } while(0);
 
 #define CHECK_ROOM(cursor, start, len) \
 do {\
